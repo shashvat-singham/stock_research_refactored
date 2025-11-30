@@ -1,0 +1,500 @@
+{
+	"info": {
+		"_postman_id": "stock-research-chatbot-v2.1",
+		"name": "Stock Research Chatbot v2.1 - Smart Correction",
+		"description": "Complete API testing collection for Stock Research Chatbot with Gemini-powered smart correction.\n\n## Features\n- Smart correction for misspelled company names\n- Multi-correction support\n- Sequential confirmation flow\n- Comprehensive test coverage",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Health Check",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Service is healthy\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.status).to.eql(\"healthy\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{BASE_URL}}/health",
+					"host": ["{{BASE_URL}}"],
+					"path": ["health"]
+				},
+				"description": "Check if the backend service is healthy and running."
+			},
+			"response": []
+		},
+		{
+			"name": "2. Simple Analysis (No Typos)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Analysis successful\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.eql(true);",
+							"    pm.expect(jsonData.insights).to.be.an('array');",
+							"    pm.expect(jsonData.insights.length).to.be.above(0);",
+							"});",
+							"",
+							"pm.test(\"No confirmation needed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.not.eql(true);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze AAPL for 1 month\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Test simple analysis with correct ticker (no typos). Should proceed directly without confirmation."
+			},
+			"response": []
+		},
+		{
+			"name": "3. Single Typo Detection",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Confirmation needed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.eql(true);",
+							"    pm.expect(jsonData.confirmation_prompt).to.exist;",
+							"});",
+							"",
+							"pm.test(\"Suggestion is Meta\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.confirmation_prompt.suggestion.ticker).to.eql(\"META\");",
+							"});",
+							"",
+							"// Save conversation_id for next request",
+							"var jsonData = pm.response.json();",
+							"if (jsonData.confirmation_prompt) {",
+							"    pm.environment.set(\"CONVERSATION_ID\", jsonData.confirmation_prompt.conversation_id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze matae for 1 month\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Test single typo detection. 'matae' should be detected as 'Meta Platforms Inc. (META)'."
+			},
+			"response": []
+		},
+		{
+			"name": "4. Confirm Single Correction",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Analysis successful after confirmation\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.eql(true);",
+							"    pm.expect(jsonData.tickers_analyzed).to.include(\"META\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze matae for 1 month\",\n  \"conversation_id\": \"{{CONVERSATION_ID}}\",\n  \"confirmation_response\": \"Yes\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Confirm the correction from previous request. Should proceed with META analysis."
+			},
+			"response": []
+		},
+		{
+			"name": "5. Multiple Typos Detection",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Confirmation needed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.eql(true);",
+							"});",
+							"",
+							"pm.test(\"First correction is Meta\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.confirmation_prompt.suggestion.ticker).to.eql(\"META\");",
+							"});",
+							"",
+							"// Save conversation_id",
+							"var jsonData = pm.response.json();",
+							"if (jsonData.confirmation_prompt) {",
+							"    pm.environment.set(\"MULTI_CONVERSATION_ID\", jsonData.confirmation_prompt.conversation_id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze metae Apple and TSLAA\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Test multiple typos detection. Should detect 'metae' and 'TSLAA' as misspellings."
+			},
+			"response": []
+		},
+		{
+			"name": "6. Confirm First of Multiple",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Next confirmation needed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.eql(true);",
+							"});",
+							"",
+							"pm.test(\"Second correction is Tesla\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.confirmation_prompt.suggestion.ticker).to.eql(\"TSLA\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze metae Apple and TSLAA\",\n  \"conversation_id\": \"{{MULTI_CONVERSATION_ID}}\",\n  \"confirmation_response\": \"Yes\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Confirm first correction (META). Should ask about second correction (TSLA)."
+			},
+			"response": []
+		},
+		{
+			"name": "7. Confirm Second of Multiple",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Analysis successful\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.success).to.eql(true);",
+							"});",
+							"",
+							"pm.test(\"All tickers analyzed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.tickers_analyzed).to.include(\"META\");",
+							"    pm.expect(jsonData.tickers_analyzed).to.include(\"AAPL\");",
+							"    pm.expect(jsonData.tickers_analyzed).to.include(\"TSLA\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze metae Apple and TSLAA\",\n  \"conversation_id\": \"{{MULTI_CONVERSATION_ID}}\",\n  \"confirmation_response\": \"Yes\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Confirm second correction (TSLA). Should proceed with full analysis of META, AAPL, TSLA."
+			},
+			"response": []
+		},
+		{
+			"name": "8. Reject Correction",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Clarification requested\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.eql(true);",
+							"    pm.expect(jsonData.confirmation_prompt.type).to.eql(\"clarification\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze matae for 1 month\",\n  \"conversation_id\": \"{{CONVERSATION_ID}}\",\n  \"confirmation_response\": \"No\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Reject a correction. Should ask for clarification."
+			},
+			"response": []
+		},
+		{
+			"name": "9. Complex Query with Multiple Companies",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Multiple tickers analyzed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    if (jsonData.success) {",
+							"        pm.expect(jsonData.tickers_analyzed.length).to.be.above(1);",
+							"    }",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Compare AAPL, MSFT, and GOOGL for AI datacenter demand\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Test complex query with multiple correct tickers. Should analyze all without confirmation."
+			},
+			"response": []
+		},
+		{
+			"name": "10. Phonetic Typo (microsft)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Confirmation needed\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.needs_confirmation).to.eql(true);",
+							"});",
+							"",
+							"pm.test(\"Suggestion is Microsoft\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.confirmation_prompt.suggestion.ticker).to.eql(\"MSFT\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"query\": \"Analyze microsft for 1 month\"\n}"
+				},
+				"url": {
+					"raw": "{{BASE_URL}}/analyze",
+					"host": ["{{BASE_URL}}"],
+					"path": ["analyze"]
+				},
+				"description": "Test phonetic typo detection. 'microsft' should be detected as 'Microsoft Corporation (MSFT)'."
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:8000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "CONVERSATION_ID",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "MULTI_CONVERSATION_ID",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

@@ -1,0 +1,48 @@
+graph TB
+    subgraph Frontend["Frontend - React/Vite"]
+        A["main.jsx<br/>Line 1-9"] --> B["App.jsx<br/>Lines 110-672"]
+        B --> C["useWebSocketLogs.js<br/>Lines 9-114"]
+        B --> D["StreamingLogPanel.jsx"]
+        C --> E["WebSocket Connection<br/>ws://localhost:8000/ws/requestId"]
+    end
+    
+    subgraph Backend["Backend - FastAPI"]
+        F["main.py<br/>Lines 57-62"] --> G["api.py<br/>Lines 40-264"]
+        F --> H["websocket.py<br/>Lines 77-107"]
+        
+        G --> I["orchestrator.py<br/>Lines 403-478"]
+        G --> J["ticker_mapper.py"]
+        G --> K["smart_correction_service.py"]
+        G --> L["conversation_manager.py"]
+        G --> M["log_broadcaster.py<br/>Lines 36-309"]
+        
+        I --> N["gemini_service.py<br/>Lines 16-300"]
+        I --> O["yahoo_finance_tool.py<br/>Lines 16-250"]
+        
+        M --> H
+        H --> E
+    end
+    
+    subgraph External["External Services"]
+        P["Yahoo Finance API"]
+        Q["Google Gemini AI"]
+        R["Manus API Hub"]
+    end
+    
+    O --> R
+    R --> P
+    N --> Q
+    
+    B -->|"HTTP POST /api/v1/analyze"| G
+    E -->|"WebSocket Messages"| H
+    
+    style A fill:#e1f5ff
+    style B fill:#e1f5ff
+    style C fill:#e1f5ff
+    style F fill:#ffe1e1
+    style G fill:#ffe1e1
+    style H fill:#ffe1e1
+    style I fill:#fff4e1
+    style M fill:#fff4e1
+    style N fill:#e1ffe1
+    style O fill:#e1ffe1

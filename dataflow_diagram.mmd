@@ -1,0 +1,152 @@
+sequenceDiagram
+    participant User
+    participant App.jsx
+    participant useWebSocketLogs
+    participant API_Router
+    participant LogBroadcaster
+    participant Orchestrator
+    participant GeminiService
+    participant YahooFinanceTool
+    participant WebSocketManager
+    
+    Note over User,WebSocketManager: REQUEST FLOW
+    
+    User->>App.jsx: Enter query "analyze AAPL"
+    Note over App.jsx: Line 133: handleAnalyze()
+    
+    App.jsx->>App.jsx: Generate requestId
+    Note over App.jsx: Line 151: req-${Date.now()}
+    
+    App.jsx->>useWebSocketLogs: Connect WebSocket
+    Note over useWebSocketLogs: Line 22: connect()
+    useWebSocketLogs->>WebSocketManager: ws://localhost:8000/ws/{requestId}
+    Note over WebSocketManager: Line 25: connect()
+    
+    App.jsx->>API_Router: POST /api/v1/analyze
+    Note over API_Router: Line 41: analyze_stocks()
+    
+    API_Router->>LogBroadcaster: Create broadcaster
+    Note over API_Router: Line 61: create_log_broadcaster()
+    Note over LogBroadcaster: Line 36: __init__()
+    
+    API_Router->>LogBroadcaster: query_received()
+    Note over LogBroadcaster: Line 96: emit INFO
+    LogBroadcaster->>WebSocketManager: broadcast()
+    Note over WebSocketManager: Line 52: broadcast()
+    WebSocketManager->>useWebSocketLogs: Send log event
+    useWebSocketLogs->>App.jsx: Update logs state
+    Note over App.jsx: Display in StreamingLogPanel
+    
+    API_Router->>API_Router: Check for typos
+    Note over API_Router: Line 130: smart_correction_service
+    
+    API_Router->>API_Router: Extract tickers
+    Note over API_Router: Line 206: ticker_mapper.extract_tickers()
+    
+    API_Router->>LogBroadcaster: tickers_found()
+    LogBroadcaster->>WebSocketManager: broadcast()
+    WebSocketManager->>useWebSocketLogs: Send log
+    
+    API_Router->>Orchestrator: analyze()
+    Note over Orchestrator: Line 403: analyze()
+    
+    Note over Orchestrator,YahooFinanceTool: ORCHESTRATION FLOW
+    
+    Orchestrator->>Orchestrator: Build workflow
+    Note over Orchestrator: Line 74: _build_workflow()
+    
+    Orchestrator->>Orchestrator: extract_tickers_node
+    Note over Orchestrator: Line 77: Extract/confirm tickers
+    
+    Orchestrator->>LogBroadcaster: starting_analysis()
+    Note over LogBroadcaster: Line 145: emit INFO
+    LogBroadcaster->>WebSocketManager: broadcast()
+    WebSocketManager->>useWebSocketLogs: Send log
+    
+    Orchestrator->>Orchestrator: process_all_tickers()
+    Note over Orchestrator: Line 333: Parallel processing
+    
+    loop For each ticker
+        Orchestrator->>Orchestrator: analyze_ticker_node()
+        Note over Orchestrator: Line 106: Single ticker analysis
+        
+        Orchestrator->>LogBroadcaster: fetching_company_info()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>YahooFinanceTool: get_stock_info()
+        Note over YahooFinanceTool: Line 120: Fetch stock data
+        YahooFinanceTool->>YahooFinanceTool: api_client.call_api()
+        Note over YahooFinanceTool: Line 132: Call Manus API Hub
+        YahooFinanceTool-->>Orchestrator: Stock info
+        
+        Orchestrator->>LogBroadcaster: fetching_news()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>YahooFinanceTool: get_news()
+        Note over YahooFinanceTool: Fetch news articles
+        YahooFinanceTool-->>Orchestrator: News articles
+        
+        Orchestrator->>LogBroadcaster: analyzing_news_sentiment()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>GeminiService: summarize_news()
+        Note over GeminiService: Line 34: AI analysis
+        GeminiService->>GeminiService: model.generate_content()
+        Note over GeminiService: Line 84: Call Gemini API
+        GeminiService-->>Orchestrator: News summary
+        
+        Orchestrator->>LogBroadcaster: fetching_price_data()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>YahooFinanceTool: get_price_history()
+        Note over YahooFinanceTool: Fetch price data
+        YahooFinanceTool-->>Orchestrator: Price data
+        
+        Orchestrator->>LogBroadcaster: analyzing_technicals()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>GeminiService: analyze_support_resistance()
+        Note over GeminiService: Technical analysis
+        GeminiService-->>Orchestrator: Technical analysis
+        
+        Orchestrator->>YahooFinanceTool: get_financial_metrics()
+        Note over YahooFinanceTool: Fetch financials
+        YahooFinanceTool-->>Orchestrator: Financial metrics
+        
+        Orchestrator->>LogBroadcaster: synthesizing_analysis()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>GeminiService: generate_investment_analysis()
+        Note over GeminiService: Line 106: Final recommendation
+        GeminiService->>GeminiService: model.generate_content()
+        GeminiService-->>Orchestrator: Investment analysis
+        
+        Orchestrator->>LogBroadcaster: recommendation_complete()
+        LogBroadcaster->>WebSocketManager: broadcast()
+        WebSocketManager->>useWebSocketLogs: Send log
+        
+        Orchestrator->>Orchestrator: Create TickerInsight
+        Note over Orchestrator: Line 299: Build insight object
+    end
+    
+    Orchestrator->>LogBroadcaster: all_analysis_complete()
+    LogBroadcaster->>WebSocketManager: broadcast()
+    WebSocketManager->>useWebSocketLogs: Send log
+    
+    Orchestrator-->>API_Router: Return insights
+    Note over API_Router: Line 236: format_analysis_response()
+    
+    API_Router-->>App.jsx: AnalysisResponse JSON
+    Note over App.jsx: Line 180: result
+    
+    App.jsx->>App.jsx: setAnalysisResult()
+    Note over App.jsx: Line 190: Update state
+    
+    App.jsx->>User: Display results
+    Note over App.jsx: Render insights with charts
